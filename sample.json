@@ -1,0 +1,15 @@
+{
+  "event": "CRITICAL_INTRUSION",
+  "severity": 0.95,
+  "count": 1240,
+  "payloadSize": "4.2GB",
+  "source": "192.168.1.105",
+  "target": "CORE_DATACENTER_01",
+  "timestamp": "2024-05-30T09:15:00Z",
+  "nodes": [
+    {"id": "node_01", "status": "compromised"},
+    {"id": "node_02", "status": "compromised"},
+    {"id": "node_03", "status": "isolating"}
+  ],
+  "action": "LOCKDOWN_TRIGGERED"
+}

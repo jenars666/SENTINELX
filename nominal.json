@@ -1,0 +1,10 @@
+{
+  "event": "SYSTEM_CHECK",
+  "severity": 0.12,
+  "count": 42,
+  "payloadSize": "12KB",
+  "source": "INTERNAL_AUDIT",
+  "target": "ALL_NODES",
+  "timestamp": "2024-05-30T09:20:00Z",
+  "status": "HEALTHY"
+}

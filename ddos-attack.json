@@ -1,0 +1,24 @@
+{
+  "event": "DDOS_ATTACK_DETECTED",
+  "severity": 0.98,
+  "count": 8420,
+  "payloadSize": "12.8GB",
+  "source": "BOTNET_CLUSTER_47",
+  "target": "PRIMARY_GATEWAY",
+  "timestamp": "2024-05-30T14:22:18Z",
+  "attackVector": "SYN_FLOOD",
+  "requestsPerSecond": 145000,
+  "nodes": [
+    {"id": "node_01", "status": "overwhelmed", "load": 98},
+    {"id": "node_02", "status": "overwhelmed", "load": 97},
+    {"id": "node_03", "status": "failing", "load": 99},
+    {"id": "node_04", "status": "critical", "load": 100},
+    {"id": "node_05", "status": "offline", "load": 0}
+  ],
+  "action": "EMERGENCY_LOCKDOWN_INITIATED",
+  "mitigation": {
+    "rateLimit": "ENABLED",
+    "geoBlocking": "ACTIVE",
+    "trafficFiltering": "MAXIMUM"
+  }
+}

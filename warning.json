@@ -1,0 +1,14 @@
+{
+  "event": "ANOMALY_DETECTED",
+  "severity": 0.55,
+  "count": 280,
+  "payloadSize": "850MB",
+  "source": "192.168.1.88",
+  "target": "WEB_SERVER_03",
+  "timestamp": "2024-05-30T10:45:00Z",
+  "nodes": [
+    {"id": "node_12", "status": "monitoring"},
+    {"id": "node_13", "status": "elevated"}
+  ],
+  "action": "ALERT_ISSUED"
+}
