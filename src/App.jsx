@@ -10,14 +10,21 @@ import {
   Globe, 
   Upload, 
   FileJson, 
-  X
+  X,
+  Radar,
+  Terminal,
+  Search,
+  Clock,
+  Crosshair,
+  SlidersHorizontal,
+  Sparkles,
+  Brain
 } from 'lucide-react';
 import { useMagnetic } from './hooks/useMagnetic';
 import { ThreatTopography } from './components/ThreatTopography';
 import { LandingPage } from './components/LandingPage';
 import { AIInsightsPanel } from './components/AIInsightsPanel';
 import { SimulationPanel } from './components/SimulationPanel';
-import { CustomCursor } from './components/CustomCursor';
 import { PerformanceMonitor } from './components/PerformanceMonitor';
 import { clsx } from 'clsx';
 import { twMerge } from 'tailwind-merge';
@@ -58,6 +65,20 @@ const THREAT_KEYWORDS = [
   'csrf',
   'lockdown',
   'breach',
+];
+
+const VIEW_MODES = [
+  { id: 'terrain', label: 'Terrain', icon: Radar },
+  { id: 'timeline', label: 'Timeline', icon: Clock },
+];
+
+const EVENT_STREAM = [
+  { id: 'evt-01', group: 'network', level: 'critical', label: 'Gateway flood spike', meta: '145K req/s', time: '00:04' },
+  { id: 'evt-02', group: 'auth', level: 'warning', label: 'Credential entropy drop', meta: '12 hosts', time: '00:11' },
+  { id: 'evt-03', group: 'app', level: 'warning', label: 'SQL probe signature', meta: '/api/users', time: '00:18' },
+  { id: 'evt-04', group: 'network', level: 'nominal', label: 'Edge route stabilized', meta: '21ms', time: '00:27' },
+  { id: 'evt-05', group: 'app', level: 'critical', label: 'Privilege escalation path', meta: 'web_02', time: '00:31' },
+  { id: 'evt-06', group: 'auth', level: 'nominal', label: 'MFA challenge passed', meta: '98.1%', time: '00:42' },
 ];
 
 const clamp01 = (value) => Math.max(0, Math.min(1, value));
@@ -248,6 +269,275 @@ const TelemetryItem = ({ label, value, icon: Icon, setTooltip, tooltipText }) =>
   </div>
 );
 
+const ModeSwitcher = ({ activeMode, onChange }) => (
+  <motion.div
+    initial={{ opacity: 0, y: -12 }}
+    animate={{ opacity: 1, y: 0 }}
+    transition={{ delay: 0.5 }}
+    className="fixed top-28 left-1/2 -translate-x-1/2 z-30 glass rounded-xl p-1.5 flex items-center gap-1 border-white/10"
+  >
+    {VIEW_MODES.map(({ id, label, icon: Icon }) => (
+      <button
+        key={id}
+        type="button"
+        onClick={() => onChange(id)}
+        className={cn(
+          "relative flex items-center gap-2 px-4 py-2 rounded-lg text-[10px] font-mono uppercase tracking-[0.18em] transition-all",
+          activeMode === id ? "text-black" : "text-white/45 hover:text-white"
+        )}
+      >
+        {activeMode === id && (
+          <motion.span
+            layoutId="mode-pill"
+            className="absolute inset-0 rounded-lg bg-nominal shadow-[0_0_24px_rgba(0,243,255,0.35)]"
+            transition={{ type: 'spring', stiffness: 420, damping: 34 }}
+          />
+        )}
+        <Icon className="relative w-3.5 h-3.5" />
+        <span className="relative">{label}</span>
+      </button>
+    ))}
+  </motion.div>
+);
+
+const EventStreamPanel = ({ activeFilter, onFilterChange, activeState }) => {
+  const filteredEvents = activeFilter === 'all'
+    ? EVENT_STREAM
+    : EVENT_STREAM.filter(event => event.group === activeFilter || event.level === activeFilter);
+
+  return (
+    <motion.section
+      initial={{ opacity: 0, x: 28 }}
+      animate={{ opacity: 1, x: 0 }}
+      transition={{ delay: 0.7 }}
+      className="fixed right-12 top-52 z-20 w-80 glass rounded-2xl border border-white/10 p-5 shadow-2xl"
+    >
+      <div className="flex items-center justify-between mb-4">
+        <div className="flex items-center gap-2">
+          <Terminal className="w-4 h-4 text-nominal" />
+          <span className="text-[9px] font-mono tracking-[0.32em] text-white/35 uppercase">Event Stream</span>
+        </div>
+        <span className={cn(
+          "text-[9px] font-mono uppercase",
+          activeState === 'critical' ? 'text-critical' : activeState === 'warning' ? 'text-warning' : 'text-nominal'
+        )}>
+          {activeState}
+        </span>
+      </div>
+
+      <div className="grid grid-cols-4 gap-1 mb-4">
+        {['all', 'network', 'auth', 'app'].map(filter => (
+          <button
+            key={filter}
+            type="button"
+            onClick={() => onFilterChange(filter)}
+            className={cn(
+              "px-2 py-1.5 rounded-md text-[9px] font-mono uppercase transition-all",
+              activeFilter === filter ? "bg-white text-black" : "bg-white/5 text-white/35 hover:text-white hover:bg-white/10"
+            )}
+          >
+            {filter}
+          </button>
+        ))}
+      </div>
+
+      <div className="flex flex-col gap-2">
+        <AnimatePresence mode="popLayout">
+          {filteredEvents.map((event, index) => (
+            <motion.div
+              layout
+              key={event.id}
+              initial={{ opacity: 0, y: 8 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, x: 16 }}
+              transition={{ delay: index * 0.04 }}
+              className="group relative overflow-hidden rounded-lg border border-white/5 bg-white/[0.035] px-3 py-2.5"
+            >
+              <div className={cn(
+                "absolute left-0 top-0 h-full w-1",
+                event.level === 'critical' ? 'bg-critical' : event.level === 'warning' ? 'bg-warning' : 'bg-nominal'
+              )} />
+              <div className="flex items-center justify-between gap-3 pl-2">
+                <div className="min-w-0">
+                  <p className="truncate text-xs font-bold text-white/85">{event.label}</p>
+                  <p className="mt-1 text-[9px] font-mono uppercase text-white/30">{event.group} :: {event.meta}</p>
+                </div>
+                <span className="shrink-0 text-[9px] font-mono text-white/25">{event.time}</span>
+              </div>
+            </motion.div>
+          ))}
+        </AnimatePresence>
+      </div>
+    </motion.section>
+  );
+};
+
+const CommandPalette = ({ isOpen, onClose, onCommand, state }) => {
+  const commands = [
+    { id: 'nominal', label: 'Set nominal state', icon: Shield, action: () => onCommand('state:nominal') },
+    { id: 'warning', label: 'Set warning state', icon: AlertTriangle, action: () => onCommand('state:warning') },
+    { id: 'critical', label: 'Set critical state', icon: Zap, action: () => onCommand('state:critical') },
+    { id: 'ai', label: 'Toggle AI analysis', icon: Brain, action: () => onCommand('toggle:ai') },
+    { id: 'perf', label: 'Toggle performance HUD', icon: SlidersHorizontal, action: () => onCommand('toggle:perf') },
+  ];
+
+  return (
+    <AnimatePresence>
+      {isOpen && (
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          className="fixed inset-0 z-[90] bg-black/55 backdrop-blur-sm flex items-start justify-center pt-28"
+          onMouseDown={onClose}
+        >
+          <motion.div
+            initial={{ opacity: 0, y: -18, scale: 0.98 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: -18, scale: 0.98 }}
+            className="w-[560px] glass rounded-2xl border border-white/10 p-4 shadow-2xl"
+            onMouseDown={(event) => event.stopPropagation()}
+          >
+            <div className="flex items-center gap-3 rounded-xl border border-white/10 bg-white/[0.035] px-4 py-3">
+              <Search className="h-4 w-4 text-nominal" />
+              <span className="flex-1 text-sm text-white/65">Command center</span>
+              <span className={cn(
+                "text-[10px] font-mono uppercase",
+                state === 'critical' ? 'text-critical' : state === 'warning' ? 'text-warning' : 'text-nominal'
+              )}>{state}</span>
+            </div>
+            <div className="mt-3 flex flex-col gap-2">
+              {commands.map(({ id, label, icon: Icon, action }) => (
+                <button
+                  key={id}
+                  type="button"
+                  onClick={() => {
+                    action();
+                    onClose();
+                  }}
+                  className="group flex items-center gap-3 rounded-xl border border-white/5 bg-white/[0.03] px-4 py-3 text-left transition-all hover:border-nominal/40 hover:bg-nominal/10"
+                >
+                  <Icon className="h-4 w-4 text-white/35 group-hover:text-nominal" />
+                  <span className="text-sm font-bold text-white/80">{label}</span>
+                </button>
+              ))}
+            </div>
+          </motion.div>
+        </motion.div>
+      )}
+    </AnimatePresence>
+  );
+};
+
+const MissionBanner = ({ state, analysis }) => {
+  const stateCopy = {
+    nominal: 'World stable',
+    warning: 'Anomaly rising',
+    critical: 'Critical incursion',
+  };
+
+  return (
+    <motion.section
+      initial={{ opacity: 0, y: -18 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ delay: 0.8 }}
+      className="mission-banner fixed left-1/2 top-40 z-20 w-[min(720px,calc(100vw-32rem))] -translate-x-1/2 rounded-2xl border border-white/10 bg-black/30 px-6 py-4 backdrop-blur-2xl"
+    >
+      <div className="absolute inset-x-8 top-0 h-px bg-gradient-to-r from-transparent via-nominal/70 to-transparent" />
+      <div className="flex items-center justify-between gap-5">
+        <div className="flex items-center gap-4">
+          <div className={cn(
+            "grid h-12 w-12 place-items-center rounded-xl border",
+            state === 'critical' ? 'border-critical/40 bg-critical/10 text-critical' : state === 'warning' ? 'border-warning/40 bg-warning/10 text-warning' : 'border-nominal/40 bg-nominal/10 text-nominal'
+          )}>
+            <Crosshair className="h-6 w-6" />
+          </div>
+          <div>
+            <p className="font-mono text-[9px] uppercase tracking-[0.38em] text-white/35">Mission directive</p>
+            <h2 className="mt-1 text-2xl font-black uppercase italic tracking-normal text-white">
+              {stateCopy[state]} <span className="text-white/35">::</span> {analysis?.event || 'Live terrain sweep'}
+            </h2>
+          </div>
+        </div>
+        <div className="hidden flex-col items-end md:flex">
+          <span className={cn(
+            "text-3xl font-black leading-none",
+            state === 'critical' ? 'text-critical glow-red' : state === 'warning' ? 'text-warning glow-amber' : 'text-nominal glow-cyan'
+          )}>
+            {analysis ? `${Math.round(analysis.score * 100)}%` : state === 'critical' ? '92%' : state === 'warning' ? '45%' : '13%'}
+          </span>
+          <span className="mt-1 font-mono text-[9px] uppercase tracking-[0.28em] text-white/35">exposure</span>
+        </div>
+      </div>
+    </motion.section>
+  );
+};
+
+const DirectorPanel = ({ state, analysis }) => {
+  const bars = state === 'critical'
+    ? [92, 84, 100, 73, 88]
+    : state === 'warning'
+      ? [54, 68, 45, 72, 59]
+      : [24, 18, 31, 14, 28];
+
+  return (
+    <motion.aside
+      initial={{ opacity: 0, x: 28 }}
+      animate={{ opacity: 1, x: 0 }}
+      exit={{ opacity: 0, x: 28 }}
+      transition={{ delay: 0.9 }}
+      className="director-panel fixed right-12 top-52 z-20 w-80 rounded-2xl border border-white/10 bg-black/28 p-5 backdrop-blur-2xl"
+    >
+      <div className="mb-5 flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <Radar className="h-4 w-4 text-nominal" />
+          <span className="font-mono text-[9px] uppercase tracking-[0.35em] text-white/35">World Director</span>
+        </div>
+        <span className={cn(
+          "rounded-md px-2 py-1 font-mono text-[9px] uppercase tracking-[0.2em]",
+          state === 'critical' ? 'bg-critical/10 text-critical' : state === 'warning' ? 'bg-warning/10 text-warning' : 'bg-nominal/10 text-nominal'
+        )}>
+          {state}
+        </span>
+      </div>
+
+      <div className="rounded-xl border border-white/5 bg-white/[0.035] p-4">
+        <div className="flex items-center justify-between">
+          <span className="text-sm font-bold text-white/80">{analysis?.fileName || 'Procedural threat field'}</span>
+          <Activity className="h-4 w-4 text-white/35" />
+        </div>
+        <p className="mt-2 text-xs leading-5 text-white/42">
+          {analysis
+            ? `${analysis.records} records mapped across ${analysis.affectedNodes || 'virtual'} nodes.`
+            : 'Terrain reacts to threat level, simulations, command palette actions, and uploaded telemetry.'}
+        </p>
+      </div>
+
+      <div className="mt-5 space-y-3">
+        {['Ingress', 'Exploit', 'Density', 'Latency', 'Contain'].map((label, index) => (
+          <div key={label}>
+            <div className="mb-1.5 flex items-center justify-between font-mono text-[9px] uppercase tracking-[0.22em] text-white/35">
+              <span>{label}</span>
+              <span>{bars[index]}%</span>
+            </div>
+            <div className="h-1.5 overflow-hidden rounded-full bg-white/5">
+              <motion.div
+                initial={{ width: 0 }}
+                animate={{ width: `${bars[index]}%` }}
+                transition={{ delay: 1 + index * 0.08, duration: 0.8 }}
+                className={cn(
+                  "h-full rounded-full",
+                  bars[index] > 80 ? 'bg-critical' : bars[index] > 50 ? 'bg-warning' : 'bg-nominal'
+                )}
+              />
+            </div>
+          </div>
+        ))}
+      </div>
+    </motion.aside>
+  );
+};
+
 export default function App() {
   const [showLanding, setShowLanding] = useState(true);
   const [threatState, setThreatState] = useState('nominal');
@@ -265,6 +555,9 @@ export default function App() {
   const [hasInteracted, setHasInteracted] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
   const [uploadAnalysis, setUploadAnalysis] = useState(null);
+  const [activeMode, setActiveMode] = useState('terrain');
+  const [eventFilter, setEventFilter] = useState('all');
+  const [isCommandOpen, setIsCommandOpen] = useState(false);
 
   // Stats mock
   useEffect(() => {
@@ -288,6 +581,13 @@ export default function App() {
       // Toggle AI panel with 'I' key
       if (e.key === 'i' || e.key === 'I') {
         setShowAIPanel(prev => !prev);
+      }
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k') {
+        e.preventDefault();
+        setIsCommandOpen(prev => !prev);
+      }
+      if (e.key === 'Escape') {
+        setIsCommandOpen(false);
       }
     };
     
@@ -343,6 +643,22 @@ export default function App() {
       }
       setShakeTrigger(prev => prev + 1);
     });
+  };
+
+  const handleCommand = (command) => {
+    if (command.startsWith('state:')) {
+      handleUpdateState(command.replace('state:', ''));
+      return;
+    }
+
+    if (command === 'toggle:ai') {
+      setShowAIPanel(prev => !prev);
+      return;
+    }
+
+    if (command === 'toggle:perf') {
+      setShowPerformance(prev => !prev);
+    }
   };
 
   const handleSimulation = (type) => {
@@ -430,7 +746,6 @@ export default function App() {
 
   return (
     <>
-      <CustomCursor />
       <AnimatePresence mode="wait">
         {showLanding && (
           <LandingPage key="landing" onEnter={() => setShowLanding(false)} />
@@ -439,12 +754,28 @@ export default function App() {
       
       {!showLanding && (
     <div 
-      className="relative w-screen h-screen bg-[#020203] overflow-hidden select-none font-sans tracking-tight"
+      className={cn(
+        "aether-stage relative w-screen h-screen bg-[#020203] overflow-hidden select-none font-sans tracking-tight",
+        `aether-${threatState}`
+      )}
       onDragOver={handleDragOver}
       onDragLeave={handleDragLeave}
       onDrop={handleDrop}
     >
       {/* 1. HOLOGRAPHIC OVERLAYS */}
+      <div className="aether-energy-field" />
+      <div className="aether-cockpit-frame pointer-events-none">
+        <span className="frame-corner frame-corner-tl" />
+        <span className="frame-corner frame-corner-tr" />
+        <span className="frame-corner frame-corner-bl" />
+        <span className="frame-corner frame-corner-br" />
+      </div>
+      <div className="world-reticle pointer-events-none">
+        <span className="reticle-ring reticle-ring-one" />
+        <span className="reticle-ring reticle-ring-two" />
+        <span className="reticle-axis reticle-axis-x" />
+        <span className="reticle-axis reticle-axis-y" />
+      </div>
       <div className="hologram-overlay" />
       <div className="noise-overlay" />
       <div className="fixed inset-0 z-50 pointer-events-none overflow-hidden">
@@ -484,21 +815,26 @@ export default function App() {
         variants={containerVariants}
         className="relative w-full h-full"
       >
+        <ModeSwitcher activeMode={activeMode} onChange={setActiveMode} />
+        <MissionBanner state={threatState} analysis={uploadAnalysis} />
+
         {/* Header */}
         <motion.header 
           variants={itemVariants}
           className="fixed top-0 left-0 right-0 h-24 flex items-center justify-between px-16 z-20"
         >
           <div className="flex items-center gap-12">
-            <div className="flex items-center gap-5">
-              <Shield className="w-10 h-10 text-nominal animate-flicker" />
+            <div className="brand-block flex items-center gap-5 rounded-2xl border border-white/10 bg-black/20 px-5 py-3 backdrop-blur-2xl">
+              <div className="brand-emblem grid h-12 w-12 place-items-center rounded-xl border border-nominal/30 bg-nominal/10">
+                <Shield className="w-7 h-7 text-nominal animate-flicker" />
+              </div>
               <div className="flex flex-col">
                 <h1 className="text-3xl font-black tracking-tighter text-white uppercase italic leading-none">AETHER<span className="text-nominal">.LOG</span></h1>
                 <span className="text-[10px] font-mono tracking-[0.5em] text-white/30 uppercase mt-1">Terrain Sandbox v4.5</span>
               </div>
             </div>
             
-            <div className="flex items-center gap-8 glass px-8 py-3 rounded-full border-white/5">
+            <div className="telemetry-shell flex items-center gap-8 glass px-8 py-3 rounded-full border-white/5">
               <TelemetryItem 
                 label="UPLINK" 
                 value={`${fps.toFixed(0)}Hz`} 
@@ -518,7 +854,7 @@ export default function App() {
 
           <div className="flex items-center gap-8">
             <div className={cn(
-              "flex items-center gap-3 px-6 py-2.5 rounded-full text-[11px] font-mono tracking-[0.2em] border shadow-2xl transition-all duration-1000",
+              "system-pill flex items-center gap-3 px-6 py-2.5 rounded-full text-[11px] font-mono tracking-[0.2em] border shadow-2xl transition-all duration-1000",
               isOnline ? "bg-green-500/10 text-green-400 border-green-500/20" : "bg-red-500/10 text-red-400 border-red-500/20"
             )}>
               <div className={cn("w-2 h-2 rounded-full animate-pulse", isOnline ? "bg-green-400" : "bg-red-400")} />
@@ -532,7 +868,7 @@ export default function App() {
           variants={itemVariants}
           className="fixed left-12 top-[48%] -translate-y-1/2 w-72 flex flex-col z-20"
         >
-          <div className="glass p-5 rounded-[24px] border-white/10 flex flex-col gap-3 shadow-2xl">
+          <div className="control-spine glass p-5 rounded-[24px] border-white/10 flex flex-col gap-3 shadow-2xl">
             <div className="flex flex-col mb-1">
               <span className="text-[9px] font-mono tracking-[0.4em] text-white/20 uppercase">Threat Level</span>
             </div>
@@ -567,26 +903,6 @@ export default function App() {
               />
             </div>
 
-            <div className="h-px w-full bg-white/5 my-0.5" />
-
-            {/* Space-Efficient Upload Unit - FIXED VERSION */}
-            <label className="group relative flex items-center gap-3 p-3 glass rounded-lg border-dashed border-2 border-white/20 hover:border-nominal/50 transition-all cursor-pointer">
-              <input 
-                type="file" 
-                accept=".json,application/json" 
-                onChange={handleFileUpload} 
-                className="hidden"
-              />
-              <div className="w-8 h-8 rounded bg-white/5 flex items-center justify-center">
-                <Upload className="w-3.5 h-3.5 text-white/40 group-hover:text-nominal transition-colors" />
-              </div>
-              <div className="flex flex-col">
-                <span className="font-bold text-[10px] text-white/80 tracking-widest uppercase">Inject Logs</span>
-                <span className="text-[8px] text-white/30 font-mono">
-                  {uploadAnalysis ? `${uploadAnalysis.fileName} :: ${uploadAnalysis.state}` : 'Click or drag JSON'}
-                </span>
-              </div>
-            </label>
           </div>
         </motion.aside>
 
@@ -595,7 +911,7 @@ export default function App() {
           variants={itemVariants}
           className="fixed bottom-10 left-12 right-12 flex justify-center z-20"
         >
-          <div className="flex gap-12 glass px-12 py-6 rounded-[28px] border-white/10 shadow-2xl relative overflow-hidden backdrop-blur-3xl min-w-[700px] justify-center items-center">
+          <div className="metric-dock flex gap-12 glass px-12 py-6 rounded-[28px] border-white/10 shadow-2xl relative overflow-hidden backdrop-blur-3xl min-w-[700px] justify-center items-center">
             <div className="absolute top-0 left-0 w-full h-[1px] bg-gradient-to-r from-transparent via-white/20 to-transparent" />
             
             <div className="flex flex-col items-center">
@@ -628,6 +944,23 @@ export default function App() {
           </div>
         </motion.footer>
       </motion.div>
+
+      <AnimatePresence mode="wait">
+        {activeMode === 'timeline' && (
+          <EventStreamPanel
+            key="timeline-panel"
+            activeFilter={eventFilter}
+            onFilterChange={setEventFilter}
+            activeState={threatState}
+          />
+        )}
+      </AnimatePresence>
+
+      <AnimatePresence>
+        {activeMode === 'terrain' && !showAIPanel && (
+          <DirectorPanel state={threatState} analysis={uploadAnalysis} />
+        )}
+      </AnimatePresence>
 
       {/* Tooltip & Toasts */}
       <AnimatePresence>
@@ -697,6 +1030,55 @@ export default function App() {
       {/* Performance Monitor */}
       <PerformanceMonitor show={showPerformance} />
 
+      <CommandPalette
+        isOpen={isCommandOpen}
+        onClose={() => setIsCommandOpen(false)}
+        onCommand={handleCommand}
+        state={threatState}
+      />
+
+      {/* Command Button */}
+      <motion.button
+        type="button"
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.7 }}
+        onClick={() => setIsCommandOpen(true)}
+        className="fixed right-12 bottom-40 z-40 group flex w-72 items-center gap-4 p-4 glass rounded-xl border border-white/10 hover:border-nominal/50 hover:bg-white/[0.04] transition-all shadow-[0_0_28px_rgba(255,255,255,0.06)]"
+      >
+        <div className="w-11 h-11 rounded-lg bg-white/5 flex items-center justify-center border border-white/10 shrink-0">
+          <Sparkles className="w-5 h-5 text-white/55 group-hover:text-nominal transition-colors" />
+        </div>
+        <div className="flex flex-col min-w-0 text-left">
+          <span className="font-bold text-sm text-white tracking-wide uppercase">Command Center</span>
+          <span className="text-[10px] text-white/40 font-mono truncate">CTRL K :: quick actions</span>
+        </div>
+      </motion.button>
+
+      {/* JSON Upload Button */}
+      <motion.label
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.8 }}
+        className="fixed right-12 bottom-20 z-40 group flex items-center gap-4 p-4 glass rounded-xl border-dashed border-2 border-nominal/50 hover:border-nominal hover:bg-nominal/10 transition-all cursor-pointer shadow-[0_0_32px_rgba(0,243,255,0.16)] w-72"
+      >
+        <input 
+          type="file" 
+          accept=".json,application/json" 
+          onChange={handleFileUpload} 
+          className="hidden"
+        />
+        <div className="w-11 h-11 rounded-lg bg-nominal/10 flex items-center justify-center border border-nominal/20 shrink-0">
+          <Upload className="w-5 h-5 text-nominal transition-colors" />
+        </div>
+        <div className="flex flex-col min-w-0">
+          <span className="font-bold text-sm text-white tracking-wide uppercase">Upload JSON File</span>
+          <span className="text-[10px] text-white/45 font-mono truncate">
+            {uploadAnalysis ? `${uploadAnalysis.fileName} :: ${uploadAnalysis.state.toUpperCase()}` : 'Click here or drag JSON'}
+          </span>
+        </div>
+      </motion.label>
+
       {/* Keyboard Shortcuts Hint */}
       <motion.div
         initial={{ opacity: 0 }}
@@ -706,33 +1088,6 @@ export default function App() {
       >
         Press <span className="text-nominal">P</span> for stats • <span className="text-nominal">I</span> for AI
       </motion.div>
-
-      {/* Initial Interaction Prompt */}
-      <AnimatePresence>
-        {!hasInteracted && (
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -20 }}
-            transition={{ delay: 1 }}
-            className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-40 pointer-events-none"
-          >
-            <div className="glass px-8 py-6 rounded-2xl border border-nominal/30 text-center">
-              <motion.div
-                animate={{ scale: [1, 1.05, 1] }}
-                transition={{ duration: 2, repeat: Infinity }}
-                className="flex flex-col items-center gap-3"
-              >
-                <Upload className="w-8 h-8 text-nominal" />
-                <div>
-                  <p className="text-lg font-bold text-white mb-1">Upload JSON or Select Threat Level</p>
-                  <p className="text-xs text-white/50 font-mono">Terrain will activate on interaction</p>
-                </div>
-              </motion.div>
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
 
       {/* Drag & Drop Overlay */}
       <AnimatePresence>
